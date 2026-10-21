@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#07100b">
+<title>HEX Offset Tool - MHIU1202</title>
+<style>
+:root {
+  color-scheme: dark;
+  --bg: #050906;
+  --panel: #0b130e;
+  --line: #21422e;
+  --green: #32ed79;
+  --text: #e8f5eb;
+  --muted: #91a99a;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: radial-gradient(ellipse at top, #10271a 0, #050906 48%);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  padding: calc(24px + env(safe-area-inset-top))
+           16px calc(28px + env(safe-area-inset-bottom));
+}
+.wrap { max-width: 900px; margin: 0 auto; }
+header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin: 18px 4px 30px;
+}
+.logo {
+  width: 72px;
+  height: 72px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border: 2px solid #286440;
+  border-radius: 25px;
+  color: var(--green);
+  font-size: 28px;
+  font-weight: 800;
+}
+h1 { font-size: clamp(25px, 5vw, 40px); margin: 0 0 8px; }
+.sub {
+  color: var(--green);
+  font-family: ui-monospace, monospace;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.tab {
+  padding: 18px 8px;
+  border-radius: 22px;
+  border: 1px solid var(--line);
+  background: #09100b;
+  color: #a9bcb0;
+  font-size: clamp(15px, 3.4vw, 22px);
+  font-weight: 800;
+}
+.tab.active {
+  background: #10351f;
+  color: var(--green);
+  border-color: #287847;
+  box-shadow: inset 0 0 0 1px #174d2d;
+}
+.panel, .note {
+  border: 1px solid var(--line);
+  border-radius: 28px;
+  background: rgba(10,18,13,.94);
+  padding: 22px;
+  margin-bottom: 20px;
+  box-shadow: 0 12px 35px #0004;
+}
+.field { margin: 10px 0 22px; }
+.field label {
+  display: block;
+  font-weight: 800;
+  font-size: 18px;
+  margin: 0 0 12px;
+}
+input[type=file], textarea {
+  width: 100%;
+  padding: 15px 12px;
+  border: 1px solid #294d35;
+  border-radius: 18px;
+  background: #08100a;
+  color: #d7e8dc;
+  font: inherit;
+}
+textarea {
+  min-height: 170px;
+  resize: vertical;
+  font-family: ui-monospace, monospace;
+  font-size: 14px;
+}
+button {
+  border: 0;
+  border-radius: 18px;
+  padding: 17px 12px;
+  font-size: 19px;
+  font-weight: 850;
+  cursor: pointer;
+  text-align: center;
+}
+.primary {
+  width: 100%;
+  background: var(--green);
+  color: #031008;
+}
+.secondary {
+  background: #14351f;
+  color: var(--green);
+  border: 1px solid #286640;
+}
+button:disabled { opacity: .45; cursor: not-allowed; }
+.actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 12px;
+}
+.note {
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1.7;
+}
+.status {
+  margin-top: 16px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+.progress {
+  height: 8px;
+  border-radius: 99px;
+  background: #15251a;
+  overflow: hidden;
+  margin-top: 10px;
+}
+.bar {
+  height: 100%;
+  width: 0;
+  background: var(--green);
+  transition: width .15s;
+}
+.resulthead {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.result {
+  background: #030704;
+  border: 1px solid #203d2b;
+  border-radius: 16px;
+  padding: 14px;
+  min-height: 100px;
+  max-height: 420px;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font: 13px/1.65 ui-monospace, monospace;
+  color: #a7ffbf;
+}
+.small {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+.hidden { display: none !important; }
+@media (min-width: 700px) {
+  body { padding-left: 28px; padding-right: 28px; }
+  .panel, .note { padding: 30px; }
+  .field label { font-size: 20px; }
+}
+</style>
+</head>
+<body>
+<main class="wrap">
+
+<header>
+  <div class="logo">&lt;/&gt;</div>
+  <div>
+    <h1>HEX Offset Tool</h1>
+    <div class="sub">Nguyễn Minh Hiếu-LOCAL • MAKE + LEAK</div>
+  </div>
+</header>
+
+<div class="tabs">
+  <button class="tab active" id="makeTab" type="button">🟢 MAKE / PATCH</button>
+  <button class="tab" id="leakTab" type="button">🔎 LEAK</button>
+</div>
+
+<section class="panel" id="makePanel">
+  <div class="field">
+    <label for="patchFile">📁 FILE GỐC</label>
+    <input id="patchFile" type="file">
+  </div>
+
+  <div class="field">
+    <label for="patches">🧩 OFFSET → HEX</label>
+    <textarea id="patches" spellcheck="false" placeholder="Nhập mỗi dòng theo dạng:
+0x0000714C => 0E1597BE668E81
+0x00007154 => 14FECCB100000000"></textarea>
+    <div class="small">
+      Nhập offset dạng HEX và chuỗi HEX mới. Không cần nhập HEX cũ. Mỗi dòng một thay đổi.
+    </div>
+  </div>
+
+  <button class="primary" id="previewPatch" type="button">⚡ VALIDATE &amp; PREVIEW</button>
+  <div class="status" id="patchStatus" role="status">Chọn file gốc, nhập offset và HEX mới, sau đó kiểm tra.</div>
+
+  <div class="actions">
+    <button class="secondary" id="applyPatch" type="button" disabled>MAKE FILE</button>
+    <button class="secondary" id="downloadPatch" type="button" disabled>TẢI FILE ĐÃ MAKE</button>
+  </div>
+</section>
+
+<section class="panel hidden" id="leakPanel">
+  <div class="field">
+    <label for="original">📁 FILE GỐC</label>
+    <input id="original" type="file">
+  </div>
+  <div class="field">
+    <label for="edited">📁 FILE ĐÃ CHỈNH SỬA</label>
+    <input id="edited" type="file">
+  </div>
+  <button class="primary" id="compare" type="button">🔎 SO SÁNH</button>
+  <div class="progress"><div class="bar" id="bar"></div></div>
+  <div class="status" id="status" role="status">Chọn hai file để bắt đầu. So sánh theo khối 1 MiB.</div>
+</section>
+
+<section class="panel hidden" id="resultsPanel">
+  <div class="resulthead">
+    <strong>📋 KẾT QUẢ LEAK</strong>
+    <span id="count" class="small">0 dòng</span>
+  </div>
+  <div class="result" id="results">Offset sẽ xuất hiện theo định dạng:
+0x0000714C =&gt; 0E1597BE668E81</div>
+  <div class="actions">
+    <button class="secondary" id="copy" type="button" disabled>SAO CHÉP</button>
+    <button class="secondary" id="save" type="button" disabled>TẢI TXT</button>
+  </div>
+  <p class="small">Các byte khác nhau được nhóm thành các đoạn liên tiếp. Offset tính từ đầu file, bắt đầu tại 0x00000000.</p>
+</section>
+
+<section class="note">
+  <strong style="color:#e8f5eb">Lưu ý:</strong>
+  Công cụ xử lý file cục bộ trong trình duyệt, không tải lên máy chủ và không ghi đè file gốc.
+  File 600.000.000 byte (~572 MiB) có thể vượt giới hạn bộ nhớ hoặc tải xuống của một số phiên bản Safari trên iPhone.
+</section>
+
+</main>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const CHUNK = 1024 * 1024;
+  const MAX_RUN_BYTES = 64;
+
+  let leakOutput = [];
+  let running = false;
+  let totalDiff = 0;
+  let madeBlob = null;
+  let madeName = '';
+  let patchJob = null;
+  let buildRunning = false;
+  let downloadUrl = null;
+
+  const hexOffset = n => n.toString(16).toUpperCase().padStart(8, '0');
+
+  function setStatus(id, text) {
+    $(id).textContent = text;
+  }
+
+  function formatBytes(bytes) {
+    if (bytes < 1024 * 1024) return bytes.toLocaleString() + ' byte';
+    return (bytes / (1024 * 1024)).toFixed(2) + ' MiB';
+  }
+
+  function switchTab(leak) {
+    $('leakTab').classList.toggle('active', leak);
+    $('makeTab').classList.toggle('active', !leak);
+    $('leakPanel').classList.toggle('hidden', !leak);
+    $('resultsPanel').classList.toggle('hidden', !leak);
+    $('makePanel').classList.toggle('hidden', leak);
+  }
+
+  $('leakTab').addEventListener('click', () => switchTab(true));
+  $('makeTab').addEventListener('click', () => switchTab(false));
+
+  // MAKE / PATCH: kiểm tra offset và HEX mới.
+  function parsePatches(text, fileSize) {
+    const lines = text.split(/\r?\n/);
+    const patches = [];
+    const errors = [];
+
+    lines.forEach((raw, i) => {
+      const line = raw.trim();
+      if (!line || line.startsWith('#')) return;
+
+      const m = line.match(
+        /^(0x[0-9a-f]+|[0-9a-f]+)\s*(?:=>|:|=|\s)\s*([0-9a-f\s]+)$/i
+      );
+
+      if (!m) {
+        errors.push(`Dòng ${i + 1}: sai định dạng.`);
+        return;
+      }
+
+      const offset = parseInt(m[1].replace(/^0x/i, ''), 16);
+      const clean = m[2].replace(/\s+/g, '');
+
+      if (!clean || clean.length % 2) {
+        errors.push(`Dòng ${i + 1}: HEX phải có số ký tự chẵn.`);
+        return;
+      }
+
+      if (!Number.isSafeInteger(offset) || offset < 0 ||
+          offset + clean.length / 2 > fileSize) {
+        errors.push(`Dòng ${i + 1}: offset/độ dài nằm ngoài file.`);
+        return;
+      }
+
+      if (!/^[0-9a-f]+$/i.test(clean)) {
+        errors.push(`Dòng ${i + 1}: HEX không hợp lệ.`);
+        return;
+      }
+
+      const bytes = new Uint8Array(clean.length / 2);
+      for (let j = 0; j < bytes.length; j++) {
+        bytes[j] = parseInt(clean.slice(j * 2, j * 2 + 2), 16);
+      }
+      patches.push({ offset, bytes, line: i + 1 });
+    });
+
+    patches.sort((a, b) => a.offset - b.offset);
+
+    for (let i = 1; i < patches.length; i++) {
+      if (patches[i].offset < patches[i - 1].offset + patches[i - 1].bytes.length) {
+        errors.push(`Dòng ${patches[i].line}: vùng này chồng lấn với một offset khác.`);
+      }
+    }
+    return { patches, errors };
+  }
+
+  function resetMadeFile() {
+    if (downloadUrl) {
+      URL.revokeObjectURL(downloadUrl);
+      downloadUrl = null;
+    }
+    madeBlob = null;
+    madeName = '';
+    $('applyPatch').disabled = true;
+    $('downloadPatch').disabled = true;
+  }
+
+  $('patchFile').addEventListener('change', () => {
+    resetMadeFile();
+    patchJob = null;
+    setStatus('patchStatus', 'File đã thay đổi. Nhập offset/HEX rồi Validate & Preview lại.');
+  });
+
+  $('patches').addEventListener('input', () => {
+    resetMadeFile();
+    patchJob = null;
+  });
+
+  $('previewPatch').addEventListener('click', () => {
+    resetMadeFile();
+    patchJob = null;
+
+    const file = $('patchFile').files[0];
+    if (!file) {
+      setStatus('patchStatus', 'Vui lòng chọn FILE GỐC.');
+      return;
+    }
+
+    const parsed = parsePatches($('patches').value, file.size);
+    if (parsed.errors.length) {
+      setStatus('patchStatus', 'Có lỗi:\n' + parsed.errors.join('\n'));
+      return;
+    }
+    if (!parsed.patches.length) {
+      setStatus('patchStatus', 'Chưa có offset hợp lệ. Ví dụ:\n0x0000714C => 0E1597BE668E81');
+      return;
+    }
+
+    patchJob = {
+      file,
+      size: file.size,
+      name: file.name,
+      lastModified: file.lastModified,
+      patches: parsed.patches.map(p => ({ offset: p.offset, bytes: p.bytes }))
+    };
+
+    const totalChanged = patchJob.patches.reduce((sum, p) => sum + p.bytes.length, 0);
+    setStatus(
+      'patchStatus',
+      'VALIDATE THÀNH CÔNG\n' +
+      'File: ' + file.name + '\n' +
+      'Dung lượng: ' + formatBytes(file.size) + '\n' +
+      'Số vùng patch: ' + parsed.patches.length + '\n' +
+      'Tổng byte thay thế: ' + totalChanged.toLocaleString() +
+      '\n\nFile gốc sẽ được giữ nguyên.\nNhấn MAKE FILE để tạo bản mới.'
+    );
+    $('applyPatch').disabled = false;
+  });
+
+  // Ghép các lát Blob với vùng byte thay thế, không đọc toàn file vào RAM.
+  $('applyPatch').addEventListener('click', async () => {
+    if (buildRunning) return;
+
+    const job = patchJob;
+    const currentFile = $('patchFile').files[0];
+
+    if (!job || !currentFile) {
+      setStatus('patchStatus', 'Hãy chọn file và VALIDATE & PREVIEW lại.');
+      return;
+    }
+    if (currentFile !== job.file ||
+        currentFile.size !== job.size ||
+        currentFile.lastModified !== job.lastModified) {
+      resetMadeFile();
+      patchJob = null;
+      setStatus('patchStatus', 'File đã thay đổi. Hãy VALIDATE & PREVIEW lại.');
+      return;
+    }
+
+    buildRunning = true;
+    resetMadeFile();
+    $('applyPatch').disabled = true;
+    $('previewPatch').disabled = true;
+
+    try {
+      const file = job.file;
+      const patches = job.patches;
+      const parts = [];
+      let cursor = 0;
+
+      for (let i = 0; i < patches.length; i++) {
+        const p = patches[i];
+
+        if (p.offset > cursor) parts.push(file.slice(cursor, p.offset));
+        parts.push(p.bytes);
+        cursor = p.offset + p.bytes.length;
+
+        if ((i + 1) % 200 === 0 || i === patches.length - 1) {
+          setStatus(
+            'patchStatus',
+            'Đang tạo file...\nĐã xử lý ' + (i + 1) + '/' + patches.length +
+            ' vùng.\nDung lượng gốc: ' + formatBytes(file.size) +
+            '\nĐang ghép các phần dữ liệu...'
+          );
+          await new Promise(resolve => setTimeout(resolve, 0));
+        }
+      }
+
+      if (cursor < file.size) parts.push(file.slice(cursor, file.size));
+
+      const result = new Blob(parts, { type: 'application/octet-stream' });
+      if (result.size !== file.size) {
+        throw new Error('Kích thước đầu ra không khớp với file gốc.');
+      }
+
+      madeBlob = result;
+      madeName = (file.name.replace(/\.[^.]+$/, '') || file.name) + '-made.bin';
+      $('downloadPatch').disabled = false;
+
+      setStatus(
+        'patchStatus',
+        'MAKE FILE THÀNH CÔNG\n' +
+        'Tên file: ' + madeName + '\n' +
+        'Dung lượng: ' + formatBytes(madeBlob.size) + '\n' +
+        'Số vùng patch: ' + patches.length + '\n\n' +
+        'File gốc không bị thay đổi.\nNhấn TẢI FILE ĐÃ MAKE để lưu file.'
+      );
+    } catch (err) {
+      madeBlob = null;
+      madeName = '';
+      setStatus(
+        'patchStatus',
+        'MAKE FILE THẤT BẠI\n' + (err.message || String(err)) +
+        '\n\nThử đóng các tab không cần thiết rồi thực hiện lại.'
+      );
+    } finally {
+      buildRunning = false;
+      $('applyPatch').disabled = !patchJob;
+      $('previewPatch').disabled = false;
+    }
+  });
+
+  // Tải xuống: giữ Blob URL để có thể thử lại nếu Safari không bắt đầu tải.
+  $('downloadPatch').addEventListener('click', () => {
+    if (!madeBlob) {
+      setStatus('patchStatus', 'Chưa có file đầu ra. Hãy MAKE FILE trước.');
+      return;
+    }
+
+    try {
+      if (!downloadUrl) downloadUrl = URL.createObjectURL(madeBlob);
+
+      const a = document.createElement('a');
+      a.href = downloadUrl;
+      a.download = madeName;
+      a.style.display = 'none';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+
+      setStatus(
+        'patchStatus',
+        'Đã gửi yêu cầu tải file:\n' + madeName +
+        '\nDung lượng: ' + formatBytes(madeBlob.size) +
+        '\n\nNếu Safari không tải, hãy kiểm tra ứng dụng Tệp > Tải về. ' +
+        'Nếu báo thiếu bộ nhớ, thử đóng tab khác hoặc dùng thiết bị/trình duyệt hỗ trợ file lớn.'
+      );
+    } catch (err) {
+      setStatus('patchStatus', 'Không thể bắt đầu tải file:\n' + (err.message || String(err)));
+    }
+  });
+
+  // LEAK: đọc từng khối thay vì nạp cả hai file vào RAM.
+  async function readChunk(file, start, end) {
+    return new Uint8Array(await file.slice(start, end).arrayBuffer());
+  }
+
+  function renderOutput() {
+    $('results').textContent = leakOutput.length
+      ? leakOutput.join('\n')
+      : 'Không tìm thấy byte khác nhau.';
+    $('count').textContent =
+      `${leakOutput.length.toLocaleString()} dòng • ${totalDiff.toLocaleString()} byte khác`;
+    $('copy').disabled = !leakOutput.length;
+    $('save').disabled = !leakOutput.length;
+  }
+
+  async function compareFiles() {
+    if (running) return;
+    const a = $('original').files[0];
+    const b = $('edited').files[0];
+
+    if (!a || !b) {
+      setStatus('status', 'Vui lòng chọn cả FILE GỐC và FILE ĐÃ CHỈNH SỬA.');
+      return;
+    }
+
+    running = true;
+    $('compare').disabled = true;
+    leakOutput = [];
+    totalDiff = 0;
+    renderOutput();
+    $('bar').style.width = '0%';
+
+    const common = Math.min(a.size, b.size);
+    const max = Math.max(a.size, b.size);
+    let runStart = -1;
+    let run = [];
+
+    function emit() {
+      if (runStart < 0) return;
+      for (let i = 0; i < run.length; i += MAX_RUN_BYTES) {
+        const part = run.slice(i, i + MAX_RUN_BYTES);
+        leakOutput.push(
+          '0x' + hexOffset(runStart + i) + ' => ' +
+          part.map(v => v.toString(16).toUpperCase().padStart(2, '0')).join('')
+        );
+      }
+      runStart = -1;
+      run = [];
+    }
+
+    try {
+      setStatus(
+        'status',
+        `Đang so sánh theo khối 1 MiB… Gốc: ${a.size.toLocaleString()} byte; ` +
+        `đã sửa: ${b.size.toLocaleString()} byte.`
+      );
+
+      for (let pos = 0; pos < common; pos += CHUNK) {
+        const end = Math.min(pos + CHUNK, common);
+        const [aa, bb] = await Promise.all([readChunk(a, pos, end), readChunk(b, pos, end)]);
+
+        for (let i = 0; i < aa.length; i++) {
+          if (aa[i] !== bb[i]) {
+            totalDiff++;
+            if (runStart < 0) runStart = pos + i;
+            run.push(bb[i]);
+            if (run.length >= MAX_RUN_BYTES) emit();
+          } else {
+            emit();
+          }
+        }
+
+        $('bar').style.width = (end / max * 100) + '%';
+        setStatus(
+          'status',
+          `Đang so sánh… ${end.toLocaleString()} / ${max.toLocaleString()} byte. ` +
+          `Đã phát hiện ${totalDiff.toLocaleString()} byte khác.`
+        );
+        await new Promise(resolve => setTimeout(resolve, 0));
+      }
+
+      emit();
+
+      if (a.size !== b.size) {
+        const longer = a.size > b.size ? a : b;
+        for (let pos = common; pos < longer.size; pos += CHUNK) {
+          const data = await readChunk(longer, pos, Math.min(pos + CHUNK, longer.size));
+          for (let i = 0; i < data.length; i++) {
+            if (runStart < 0) runStart = pos + i;
+            run.push(data[i]);
+            totalDiff++;
+            if (run.length >= MAX_RUN_BYTES) emit();
+          }
+          emit();
+          await new Promise(resolve => setTimeout(resolve, 0));
+        }
+      }
+
+      renderOutput();
+      $('bar').style.width = '100%';
+      setStatus(
+        'status',
+        `Hoàn tất. Đã so sánh ${common.toLocaleString()} byte chung; ` +
+        `có ${totalDiff.toLocaleString()} byte khác.` +
+        (a.size !== b.size
+          ? ' Kích thước file khác nhau; phần dư được liệt kê từ file dài hơn.'
+          : '')
+      );
+    } catch (err) {
+      emit();
+      renderOutput();
+      setStatus(
+        'status',
+        'Không thể hoàn tất: ' + (err.message || String(err)) +
+        '. Thử đóng tab khác hoặc dùng file nhỏ hơn.'
+      );
+    } finally {
+      running = false;
+      $('compare').disabled = false;
+    }
+  }
+
+  $('compare').addEventListener('click', compareFiles);
+
+  $('copy').addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(leakOutput.join('\n'));
+      setStatus('status', 'Đã sao chép danh sách kết quả.');
+    } catch (e) {
+      setStatus('status', 'Safari không cho phép sao chép tự động. Hãy nhấn giữ phần kết quả để sao chép.');
+    }
+  });
+
+  $('save').addEventListener('click', () => {
+    const blob = new Blob([leakOutput.join('\n') + '\n'], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'MHIU1202-LEAK.txt';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 30000);
+  });
+})();
+</script>
+</body>
+</html>
