@@ -1,0 +1,528 @@
+
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#07100b">
+<title>HEX Offset Tool - MHIU1202</title>
+<style>
+:root{
+ color-scheme:dark;
+ --bg:#050906;--panel:#0b130e;--line:#21422e;
+ --green:#32ed79;--text:#e8f5eb;--muted:#91a99a;
+}
+*{box-sizing:border-box}
+body{
+ margin:0;background:radial-gradient(ellipse at top,#10271a 0,#050906 48%);
+ color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+ padding:calc(24px + env(safe-area-inset-top)) 16px calc(28px + env(safe-area-inset-bottom));
+}
+.wrap{max-width:900px;margin:auto}
+header{display:flex;align-items:center;gap:16px;margin:18px 4px 30px}
+.logo{
+ width:72px;height:72px;flex-shrink:0;display:grid;place-items:center;
+ border:2px solid #286440;border-radius:25px;color:var(--green);
+ font-size:28px;font-weight:800
+}
+h1{font-size:clamp(25px,5vw,40px);margin:0 0 8px}
+.sub{color:var(--green);font-family:monospace;font-size:13px;line-height:1.5}
+.tabs{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px}
+.tab{
+ padding:18px 8px;border-radius:22px;border:1px solid var(--line);
+ background:#09100b;color:#a9bcb0;font-size:clamp(15px,3.4vw,22px);font-weight:800
+}
+.tab.active{background:#10351f;color:var(--green);border-color:#287847}
+.panel,.note{
+ border:1px solid var(--line);border-radius:25px;
+ background:rgba(10,18,13,.96);padding:20px;margin-bottom:18px;
+ box-shadow:0 12px 35px #0004
+}
+.field{margin:10px 0 20px}
+.field label{display:block;font-weight:800;font-size:16px;margin:0 0 10px}
+input[type=file],textarea{
+ width:100%;padding:14px 12px;border:1px solid #294d35;
+ border-radius:15px;background:#08100a;color:#d7e8dc;font:inherit
+}
+textarea{min-height:130px;resize:vertical;font-family:monospace;font-size:12px}
+button{
+ border:0;border-radius:16px;padding:15px 10px;
+ font-size:15px;font-weight:850;cursor:pointer
+}
+.primary{width:100%;background:var(--green);color:#031008}
+.secondary{background:#14351f;color:var(--green);border:1px solid #286640}
+button:disabled{opacity:.4}
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+.small{font-size:12px;color:var(--muted);line-height:1.6}
+.status{margin-top:14px;color:var(--muted);font-size:13px;line-height:1.7;white-space:pre-wrap;overflow-wrap:anywhere}
+.progress{height:7px;background:#15251a;border-radius:99px;overflow:hidden;margin-top:10px}
+.bar{height:100%;width:0;background:var(--green)}
+.result{
+ background:#030704;border:1px solid #203d2b;border-radius:14px;
+ padding:13px;min-height:100px;max-height:380px;overflow:auto;
+ white-space:pre-wrap;overflow-wrap:anywhere;font:12px/1.7 monospace;color:#a7ffbf
+}
+.resulthead{display:flex;justify-content:space-between;gap:8px;margin-bottom:12px;align-items:center}
+.section{font-weight:900;color:var(--green);margin:15px 0 8px}
+.hidden{display:none!important}
+.note{color:var(--muted);font-size:13px;line-height:1.7}
+@media(min-width:700px){body{padding-left:28px;padding-right:28px}.panel{padding:28px}}
+</style>
+</head>
+<body>
+<main class="wrap">
+
+<header>
+ <div class="logo">&lt;/&gt;</div>
+ <div>
+  <h1>HEX Offset Tool</h1>
+  <div class="sub">Nguyễn Minh Hiếu-LOCAL • MAKE + LEAK</div>
+ </div>
+</header>
+
+<div class="tabs">
+ <button class="tab active" id="makeTab">🟢 MAKE / PATCH</button>
+ <button class="tab" id="leakTab">🔎 LEAK</button>
+</div>
+
+<!-- MAKE -->
+<section class="panel" id="makePanel">
+
+ <div class="field">
+  <label>📁 FILE GỐC</label>
+  <input type="file" id="makeFile">
+ </div>
+
+ <div class="field">
+  <label>🔍 TÌM - HEX GỐC</label>
+  <textarea id="findHex" spellcheck="false" placeholder="00 00 00 00 05 00 00 00"></textarea>
+ </div>
+
+ <div class="field">
+  <label>🧩 THAY - HEX MỚI</label>
+  <textarea id="replaceHex" spellcheck="false" placeholder="00 00 00 00 05 00 00 00"></textarea>
+ </div>
+
+ <div class="small">
+ Nhập HEX cách nhau bằng dấu cách hoặc viết liền.
+ Mỗi cặp TÌM / THAY được xử lý theo thứ tự.
+ Thêm nhiều cặp bằng nút THÊM CẶP.
+ </div>
+
+ <div id="extraPairs"></div>
+
+ <button class="secondary" id="addPair" style="width:100%;margin-top:14px">＋ THÊM CẶP TÌM / THAY</button>
+
+ <button class="primary" id="previewMake" style="margin-top:16px">⚡ VALIDATE & PREVIEW</button>
+
+ <div class="status" id="makeStatus">Chọn file và nhập cặp HEX để bắt đầu.</div>
+
+ <div class="actions">
+  <button class="secondary" id="applyMake" disabled>MAKE FILE</button>
+  <button class="secondary" id="downloadMake" disabled>TẢI FILE</button>
+ </div>
+</section>
+
+<!-- LEAK -->
+<section class="panel hidden" id="leakPanel">
+
+ <div class="field">
+  <label>📁 FILE GỐC</label>
+  <input type="file" id="original">
+ </div>
+
+ <div class="field">
+  <label>📁 FILE ĐÃ CHỈNH SỬA</label>
+  <input type="file" id="edited">
+ </div>
+
+ <div class="field">
+  <label>⚙️ NGỮ CẢNH HEX XUNG QUANH</label>
+  <select id="contextSize" style="width:100%;padding:14px;background:#08100a;color:white;border:1px solid #294d35;border-radius:14px">
+   <option value="0">Chỉ lấy vùng khác biệt</option>
+   <option value="8">8 byte xung quanh</option>
+   <option value="16" selected>16 byte xung quanh</option>
+   <option value="32">32 byte xung quanh</option>
+   <option value="64">64 byte xung quanh</option>
+  </select>
+ </div>
+
+ <button class="primary" id="compare">🔎 START LEAK HEX</button>
+ <div class="progress"><div class="bar" id="bar"></div></div>
+ <div class="status" id="leakStatus">Chọn hai file để bắt đầu.</div>
+</section>
+
+<!-- RESULTS -->
+<section class="panel hidden" id="resultsPanel">
+ <div class="resulthead">
+  <strong>📋 KẾT QUẢ LEAK</strong>
+  <span class="small" id="count">0 cặp</span>
+ </div>
+
+ <div class="section">TÌM - ORIGINAL HEX</div>
+ <div class="result" id="findResult">Chưa có dữ liệu.</div>
+
+ <div class="section">THAY - MODIFIED HEX</div>
+ <div class="result" id="replaceResult">Chưa có dữ liệu.</div>
+
+ <div class="actions">
+  <button class="secondary" id="copyFind">COPY TÌM</button>
+  <button class="secondary" id="copyReplace">COPY THAY</button>
+  <button class="secondary" id="copyAll">COPY CẢ HAI</button>
+  <button class="secondary" id="saveLeak">EXPORT TXT</button>
+ </div>
+
+ <button class="primary" id="sendMake" style="margin-top:12px">↗ CHUYỂN CẶP HEX SANG MAKE</button>
+ <p class="small" style="margin-top:12px">
+ Kết quả được chia thành các vùng thay đổi. Những vùng được ghép chung có ngữ cảnh xung quanh để dễ đối chiếu. Nếu file có chèn hoặc xóa dữ liệu, cần kiểm tra lại cặp HEX trước khi MAKE.
+ </p>
+</section>
+
+<section class="note">
+ <strong style="color:#e8f5eb">MHIU LOCAL:</strong>
+ Công cụ xử lý dữ liệu ngay trong trình duyệt, không tải file lên máy chủ.
+ File gốc không bị ghi đè. File đầu ra được tạo thành bản mới.
+ File lớn có thể bị giới hạn bởi bộ nhớ và khả năng tải xuống của Safari.
+</section>
+</main>
+
+<script>
+(()=>{
+const $=id=>document.getElementById(id);
+const CHUNK=1024*1024;
+let pairs=[];
+let makeJob=null;
+let madeBlob=null;
+let leakPairs=[];
+let running=false;
+
+function bytes(hex){
+ const clean=hex.replace(/0x/gi,'').replace(/[^0-9a-f]/gi,'');
+ if(!clean||clean.length%2||!/^[0-9a-f]+$/i.test(clean))
+  throw Error('HEX không hợp lệ hoặc số ký tự lẻ.');
+ const out=new Uint8Array(clean.length/2);
+ for(let i=0;i<out.length;i++)out[i]=parseInt(clean.slice(i*2,i*2+2),16);
+ return out;
+}
+
+function toHex(arr){
+ return Array.from(arr,v=>v.toString(16).toUpperCase().padStart(2,'0')).join(' ');
+}
+function setStatus(id,s){$(id).textContent=s}
+function sleep(){return new Promise(r=>setTimeout(r,0))}
+function switchTab(leak){
+ $('makeTab').classList.toggle('active',!leak);
+ $('leakTab').classList.toggle('active',leak);
+ $('makePanel').classList.toggle('hidden',leak);
+ $('leakPanel').classList.toggle('hidden',!leak);
+ $('resultsPanel').classList.toggle('hidden',!leak||!leakPairs.length);
+}
+$('makeTab').onclick=()=>switchTab(false);
+$('leakTab').onclick=()=>switchTab(true);
+
+function getPairInputs(){
+ return [
+  {find:$('findHex').value,replace:$('replaceHex').value},
+  ...Array.from($('extraPairs').querySelectorAll('.pair')).map(p=>({
+   find:p.querySelector('.find').value,
+   replace:p.querySelector('.replace').value
+  }))
+ ].filter(p=>p.find.trim()||p.replace.trim());
+}
+
+$('addPair').onclick=()=>{
+ const div=document.createElement('div');
+ div.className='pair';
+ div.style.cssText='border:1px solid #294d35;border-radius:16px;padding:14px;margin-top:15px';
+ div.innerHTML=`
+ <div class="section">CẶP HEX BỔ SUNG</div>
+ <div class="field">
+ <label>TÌM - HEX GỐC</label>
+ <textarea class="find" placeholder="HEX gốc"></textarea>
+ </div>
+ <div class="field">
+ <label>THAY - HEX MỚI</label>
+ <textarea class="replace" placeholder="HEX mới"></textarea>
+ </div>
+ <button type="button" class="secondary remove" style="width:100%">XÓA CẶP</button>`;
+ div.querySelector('.remove').onclick=()=>{div.remove();resetMake()};
+ $('extraPairs').appendChild(div);
+};
+
+function resetMake(){
+ makeJob=null;madeBlob=null;
+ $('applyMake').disabled=true;
+ $('downloadMake').disabled=true;
+}
+$('makeFile').onchange=resetMake;
+$('findHex').oninput=resetMake;
+$('replaceHex').oninput=resetMake;
+$('extraPairs').oninput=resetMake;
+
+function findAll(data,pattern){
+ const found=[];
+ if(pattern.length>data.length)return found;
+ for(let i=0;i<=data.length-pattern.length;i++){
+  let ok=true;
+  for(let j=0;j<pattern.length;j++){
+   if(data[i+j]!==pattern[j]){ok=false;break}
+  }
+  if(ok){found.push(i);i+=pattern.length-1}
+ }
+ return found;
+}
+
+// MAKE: đọc file và xác minh mọi cặp đều có đúng một kết quả.
+$('previewMake').onclick=async()=>{
+ resetMake();
+ const file=$('makeFile').files[0];
+ if(!file)return setStatus('makeStatus','Vui lòng chọn file gốc.');
+
+ try{
+  const raw=getPairInputs();
+  if(!raw.length)throw Error('Chưa nhập cặp TÌM / THAY.');
+
+  const parsed=raw.map((p,i)=>{
+   if(!p.find.trim()||!p.replace.trim())
+    throw Error('Cặp '+(i+1)+': phải nhập đủ TÌM và THAY.');
+   return {find:bytes(p.find),replace:bytes(p.replace)};
+  });
+
+  // Kiểm tra dữ liệu theo từng khối có vùng chồng biên.
+  // Với thao tác MAKE, file được đọc để xác minh chính xác.
+  const data=new Uint8Array(await file.arrayBuffer());
+  let operations=[];
+
+  for(let i=0;i<parsed.length;i++){
+   const p=parsed[i];
+   const positions=findAll(data,p.find);
+   if(!positions.length)throw Error('Cặp '+(i+1)+': không tìm thấy HEX TÌM.');
+   if(positions.length>1)
+    throw Error('Cặp '+(i+1)+': tìm thấy '+positions.length+' vị trí. Không tự động thay để tránh nhầm.');
+
+   operations.push({offset:positions[0],find:p.find,replace:p.replace});
+  }
+
+  // Không cho phép các vùng nguồn chồng lấn.
+  operations.sort((a,b)=>a.offset-b.offset);
+  for(let i=1;i<operations.length;i++){
+   if(operations[i].offset<operations[i-1].offset+operations[i-1].find.length)
+    throw Error('Hai cặp TÌM bị chồng lấn.');
+  }
+
+  makeJob={file,operations};
+  setStatus('makeStatus',
+   'VALIDATE THÀNH CÔNG\n'+
+   'File: '+file.name+'\n'+
+   'Dung lượng: '+file.size.toLocaleString()+' byte\n'+
+   'Số cặp hợp lệ: '+operations.length+'\n\n'+
+   operations.map((p,i)=>'Cặp '+(i+1)+': Offset 0x'+p.offset.toString(16).toUpperCase()).join('\n')+
+   '\n\nNhấn MAKE FILE để tạo file mới.'
+  );
+  $('applyMake').disabled=false;
+ }catch(e){setStatus('makeStatus','VALIDATE THẤT BẠI\n'+e.message)}
+};
+
+$('applyMake').onclick=async()=>{
+ if(!makeJob||running)return;
+ running=true;
+ $('applyMake').disabled=true;
+ try{
+  const {file,operations}=makeJob;
+  const parts=[];
+  let cursor=0;
+
+  for(const op of operations){
+   if(op.offset>cursor)parts.push(file.slice(cursor,op.offset));
+   parts.push(op.replace);
+   cursor=op.offset+op.find.length;
+  }
+  if(cursor<file.size)parts.push(file.slice(cursor));
+
+  madeBlob=new Blob(parts,{type:'application/octet-stream'});
+  $('downloadMake').disabled=false;
+
+  setStatus('makeStatus',
+   'MAKE THÀNH CÔNG\n'+
+   'Tên file: '+file.name.replace(/\.[^.]+$/,'')+'-MHIU-MADE.bin\n'+
+   'Dung lượng: '+madeBlob.size.toLocaleString()+' byte\n'+
+   'Số cặp đã thay: '+operations.length+
+   '\n\nFile gốc được giữ nguyên.'
+  );
+ }catch(e){setStatus('makeStatus','MAKE ERROR: '+e.message)}
+ finally{running=false;$('applyMake').disabled=!makeJob}
+};
+
+$('downloadMake').onclick=()=>{
+ if(!madeBlob)return;
+ const a=document.createElement('a');
+ const url=URL.createObjectURL(madeBlob);
+ a.href=url;
+ a.download=makeJob.file.name.replace(/\.[^.]+$/,'')+'-MHIU-MADE.bin';
+ a.click();
+ setTimeout(()=>URL.revokeObjectURL(url),30000);
+};
+
+// LEAK: so sánh byte theo khối, lấy các vùng khác nhau.
+// Những vùng gần nhau được hợp nhất theo ngưỡng ngữ cảnh.
+$('compare').onclick=async()=>{
+ if(running)return;
+ const a=$('original').files[0],b=$('edited').files[0];
+ if(!a||!b)return setStatus('leakStatus','Vui lòng chọn đủ hai file.');
+
+ running=true;
+ $('compare').disabled=true;
+ leakPairs=[];
+ $('bar').style.width='0%';
+ $('resultsPanel').classList.add('hidden');
+
+ const common=Math.min(a.size,b.size);
+ const context=Number($('contextSize').value);
+ let diffs=[];
+ let total=0;
+
+ try{
+  setStatus('leakStatus','Đang phân tích HEX...');
+  for(let pos=0;pos<common;pos+=CHUNK){
+   const end=Math.min(pos+CHUNK,common);
+   const [aa,bb]=await Promise.all([
+    a.slice(pos,end).arrayBuffer(),
+    b.slice(pos,end).arrayBuffer()
+   ]);
+   const A=new Uint8Array(aa),B=new Uint8Array(bb);
+
+   for(let i=0;i<A.length;i++){
+    if(A[i]!==B[i]){
+     diffs.push(pos+i);
+     total++;
+    }
+   }
+   $('bar').style.width=(end/Math.max(a.size,b.size)*100)+'%';
+   setStatus('leakStatus',
+    'Đang so sánh: '+Math.round(end/Math.max(a.size,b.size)*100)+'%\n'+
+    'Byte khác nhau: '+total.toLocaleString());
+   await sleep();
+  }
+
+  // Phần dư của file có kích thước khác nhau.
+  if(a.size!==b.size){
+   const longer=a.size>b.size?a:b;
+   for(let i=common;i<longer.size;i+=1)diffs.push(i);
+  }
+
+  // Ghép các khác biệt gần nhau thành một vùng.
+  let groups=[];
+  if(diffs.length){
+   let start=diffs[0],end=diffs[0];
+   for(let i=1;i<diffs.length;i++){
+    if(diffs[i]<=end+context*2+1)end=diffs[i];
+    else{groups.push([start,end]);start=end=diffs[i]}
+   }
+   groups.push([start,end]);
+  }
+
+  for(const [start,end] of groups){
+   const from=Math.max(0,start-context);
+   const to=Math.min(Math.max(a.size,b.size),end+context+1);
+   const [aa,bb]=await Promise.all([
+    a.slice(from,Math.min(to,a.size)).arrayBuffer(),
+    b.slice(from,Math.min(to,b.size)).arrayBuffer()
+   ]);
+   leakPairs.push({
+    offset:from,
+    find:new Uint8Array(aa),
+    replace:new Uint8Array(bb)
+   });
+  }
+
+  renderLeak();
+  $('resultsPanel').classList.remove('hidden');
+  $('bar').style.width='100%';
+  setStatus('leakStatus',
+   'LEAK HOÀN TẤT\n'+
+   'Số byte khác: '+total.toLocaleString()+'\n'+
+   'Số vùng tìm được: '+leakPairs.length+'\n'+
+   'Ngữ cảnh: '+context+' byte mỗi phía.'
+  );
+ }catch(e){
+  setStatus('leakStatus','LEAK ERROR: '+e.message);
+ }finally{
+  running=false;
+  $('compare').disabled=false;
+ }
+};
+
+function renderLeak(){
+ const find=leakPairs.map(p=>toHex(p.find)).join('\n\n');
+ const replace=leakPairs.map(p=>toHex(p.replace)).join('\n\n');
+ $('findResult').textContent=find||'Không tìm thấy thay đổi.';
+ $('replaceResult').textContent=replace||'Không tìm thấy thay đổi.';
+ $('count').textContent=leakPairs.length+' cặp';
+}
+
+function combinedText(){
+ return leakPairs.map((p,i)=>
+  'CẶP '+(i+1)+'\nTÌM\n'+toHex(p.find)+
+  '\n\nTHAY\n'+toHex(p.replace)
+ ).join('\n\n========================\n\n');
+}
+
+async function copyText(text){
+ try{
+  await navigator.clipboard.writeText(text);
+  return true;
+ }catch(e){
+  const t=document.createElement('textarea');
+  t.value=text;document.body.appendChild(t);
+  t.select();
+  const ok=document.execCommand('copy');
+  t.remove();
+  return ok;
+ }
+}
+
+$('copyFind').onclick=()=>copyText(leakPairs.map(p=>toHex(p.find)).join('\n\n'));
+$('copyReplace').onclick=()=>copyText(leakPairs.map(p=>toHex(p.replace)).join('\n\n'));
+$('copyAll').onclick=()=>copyText(combinedText());
+
+$('saveLeak').onclick=()=>{
+ const blob=new Blob([combinedText()],{type:'text/plain;charset=utf-8'});
+ const url=URL.createObjectURL(blob);
+ const a=document.createElement('a');
+ a.href=url;a.download='MHIU1202-LEAK.txt';a.click();
+ setTimeout(()=>URL.revokeObjectURL(url),30000);
+};
+
+// Chuyển các cặp HEX sang MAKE.
+// Chỉ chuyển khi TÌM/THAY có độ dài bằng nhau và khác biệt
+// được xác định an toàn ở các vùng tương ứng.
+$('sendMake').onclick=()=>{
+ if(!leakPairs.length)return;
+
+ const valid=leakPairs.filter(p=>p.find.length===p.replace.length);
+ if(!valid.length){
+  setStatus('leakStatus',
+   'Không thể chuyển tự động: có vùng TÌM/THAY khác độ dài. Hãy kiểm tra và chỉnh sửa thủ công.');
+  return;
+ }
+
+ $('findHex').value=toHex(valid[0].find);
+ $('replaceHex').value=toHex(valid[0].replace);
+ $('extraPairs').innerHTML='';
+
+ for(let i=1;i<valid.length;i++){
+  $('addPair').click();
+  const p=$('extraPairs').lastElementChild;
+  p.querySelector('.find').value=toHex(valid[i].find);
+  p.querySelector('.replace').value=toHex(valid[i].replace);
+ }
+ resetMake();
+ switchTab(false);
+ setStatus('makeStatus',
+  'ĐÃ CHUYỂN '+valid.length+' CẶP HEX TỪ LEAK SANG MAKE.\n'+
+  'Chọn FILE GỐC tương ứng và nhấn VALIDATE & PREVIEW.');
+};
+})();
+</script>
+</body>
+</html>
